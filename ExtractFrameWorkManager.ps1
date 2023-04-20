@@ -17,13 +17,18 @@ function Main(){
     $Ids = Get-ChildItem -Path $ModelsPath |Select Name
 	$NbFiles = $Ids.Count
 	
-	Write-Output "Extraction started. Data to be stored at $HomeDir. $NbFiles model.xml files to process."
+	Write-Output "Extraction started. For more information see log file: $LogFile."
+	
+	Write-Output "Extraction started with the following params:" >> $LogFile
+	Write-Output "Models Location = $ModelsPath." >> $LogFile
+	Write-Output "HomeDir = $HomeDir.`nNumber of Files (model.xml) to Process = $NbFiles." >> $LogFile
+	
     ForEach ($Id in $Ids){
         
         $FileId = $Id.Name
         $Path = $ModelsPath + $FileId
 		
-		Write-Output "Processing File $FileId"
+		Write-Output "Processing File $FileId." >> $LogFile
 		
         [xml]$xmlElm = Get-Content -Path $Path
         # Get Project Name
@@ -37,7 +42,7 @@ function Main(){
         }
 
         if($DataSources -eq $null){
-            Write-Output "*** DataSources is null for the file $FileId"
+            Write-Output "*** DataSources is null for the file $FileId." >> $LogFile
         }
 
         if($Packages){
@@ -45,7 +50,7 @@ function Main(){
         }
 
         if($Packages -eq $null){
-            Write-Output "*** Packages is null for the file $FileId"
+            Write-Output "*** Packages is null for the file $FileId." >> $LogFile
         }
 
         if($Namespaces){
@@ -53,7 +58,7 @@ function Main(){
         }
 
         if($Namespaces -eq $null){
-            Write-Output "*** Namespaces is null for the file $FileId"
+            Write-Output "*** Namespaces is null for the file $FileId." >> $LogFile
         }
     }
 }
@@ -73,7 +78,7 @@ function ExtractPacksData($Packs) {
             | Add-Member -PassThru NoteProperty "LastChangedBy" $pack.lastChangedBy `
             | Add-Member -PassThru NoteProperty "LastPublished" $pack.lastPublished `
             | Add-Member -PassThru NoteProperty "LastPublishedCMPath" $pack.lastPublishedCMPath  `
-            | Add-Member -PassThru NoteProperty "ProjectName" $pack.ProjectName  `
+            | Add-Member -PassThru NoteProperty "ProjectName" $ProjectName  `
             | Add-Member -PassThru NoteProperty "SourceFileId" $FileId
         )
         $PacksData = $PackData
@@ -118,6 +123,7 @@ function Process-QSNode($node, $QSNode) {
         | Add-Member -PassThru NoteProperty "QSTableType" $QSNode.definition.dbQuery.tableType `
         | Add-Member -PassThru NoteProperty "QSLastChanged" $QSNode.lastChanged `
         | Add-Member -PassThru NoteProperty "QSLastChangedBy" $QSNode.lastChangedBy `
+		| Add-Member -PassThru NoteProperty "ProjectName" $ProjectName `
         | Add-Member -PassThru NoteProperty "SourceFileId" $FileId
     )
     return $result
@@ -162,6 +168,6 @@ function ExtractQSData($RootNamespace) {
     $QSData = Process-NamespaceNode -node $RootNamespace
     $DestFileName = $QuerySubjectDir + $FileId + ".csv"
 
-    $QSData | Select NamespaceName, NamespaceDescription, NamespaceLastChanged, NamespaceLastChangedBy, QSName, QSLastChanged, QSLastChangedBy, QSSQL, QSModelQuery, QSSourceTable, QSTableType, QSDataSource, SourceFileId `
+    $QSData | Select NamespaceName, NamespaceDescription, NamespaceLastChanged, NamespaceLastChangedBy, QSName, QSLastChanged, QSLastChangedBy, QSSQL, QSModelQuery, QSSourceTable, QSTableType, QSDataSource, ProjectName, SourceFileId `
     | Export-Csv -Path $DestFileName -NoTypeInformation
 }
