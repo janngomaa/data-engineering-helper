@@ -61,6 +61,9 @@ function Main(){
             Write-Output "*** Namespaces is null for the file $FileId." >> $LogFile
         }
     }
+	
+	Write-Output "Done. See data at $HomeDir" >> $LogFile
+	Write-Output "Done. See data at $HomeDir"
 }
 
 function ExtractDataSourcessData($ds) {
