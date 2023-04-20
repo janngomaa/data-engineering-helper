@@ -2,23 +2,29 @@ function Main(){
     # Get Files"
     $ModelsPath = "T:\Temp\models\"
     $Ids = Get-ChildItem -Path $ModelsPath |Select Name
+	$NbFiles = $Ids.Count
+	
+	Write-Output "Extraction started. $NbFiles model files to process."
     ForEach ($Id in $Ids){
-        Write-Output "Processing File $Id.Name"
+        
         $FileId = $Id.Name
         $Path = $ModelsPath + $FileId
+		
+		Write-Output "Processing File $FileId"
+		
         [xml]$xmlElm = Get-Content -Path $Path
         # Get Project Name
         $ProjectName = $xmlElm.project.name
         $Packages = $xmlElm.project.packages.package
         $Namespaces = $xmlElm.project.namespace
         $DataSources = $xmlElm.project.dataSources.dataSource
-        <#
+       
         if($DataSources){
             ExtractDataSourcessData -ds $DataSources
         }
 
         if($DataSources -eq $null){
-            Write-Output "*** DataSources is null for the file $Id.Name"
+            Write-Output "*** DataSources is null for the file $FileId"
         }
 
         if($Packages){
@@ -26,7 +32,7 @@ function Main(){
         }
 
         if($Packages -eq $null){
-            Write-Output "*** Packages is null for the file $Id.Name"
+            Write-Output "*** Packages is null for the file $FileId"
         }
 
         if($Namespaces){
@@ -34,8 +40,8 @@ function Main(){
         }
 
         if($Namespaces -eq $null){
-            Write-Output "*** Namespaces is null for the file $Id.Name"
-        } #>
+            Write-Output "*** Namespaces is null for the file $FileId"
+        }
     }
 }
 
