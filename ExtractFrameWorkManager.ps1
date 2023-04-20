@@ -1,10 +1,23 @@
 function Main(){
-    # Get Files"
-    $ModelsPath = "T:\Temp\models\"
+	$ModelsPath = "T:\Temp\models_all\"
+	$date = Get-Date -Format "yyyy-MM-dd"
+	$HomeDir = "T:\Temp\model_data_$date\"
+	$LogFile = $HomeDir + "log_$date.log"
+	$PackDir = $HomeDir + "packages\"
+	$DataSourceDir = $HomeDir + "data-sources\"
+	$QuerySubjectDir = $HomeDir + "query-subjects\"
+	$dirs = $HomeDir, $PackDir, $DataSourceDir, $QuerySubjectDir
+	ForEach($d in $dirs){
+		if (Test-Path $d) {
+			Remove-Item $d -Recurse -Force
+		}
+		New-Item -ItemType Directory -Path $d
+	}
+
     $Ids = Get-ChildItem -Path $ModelsPath |Select Name
 	$NbFiles = $Ids.Count
 	
-	Write-Output "Extraction started. $NbFiles model files to process."
+	Write-Output "Extraction started. Data to be stored at $HomeDir. $NbFiles model.xml files to process."
     ForEach ($Id in $Ids){
         
         $FileId = $Id.Name
@@ -46,7 +59,7 @@ function Main(){
 }
 
 function ExtractDataSourcessData($ds) {
-    $DsDest = "data-sources/" + $FileId + ".csv"
+    $DsDest = $DataSourceDir + $FileId + ".csv"
     $ds | Export-Csv -Delimiter "|" -NoTypeInformation -Path $DsDest
 }
 
@@ -66,7 +79,7 @@ function ExtractPacksData($Packs) {
         $PacksData = $PackData
     }
 
-    $PackDest = "packages/" + $FileId + ".csv"
+    $PackDest = $PackDir + $FileId + ".csv"
     $PacksData | Export-Csv -Delimiter "|" -NoTypeInformation -Path $PackDest
 }
 
@@ -147,7 +160,7 @@ function Process-NamespaceNode($node) {
 # $node: root namespace / folder
 function ExtractQSData($RootNamespace) {
     $QSData = Process-NamespaceNode -node $RootNamespace
-    $DestFileName = "query-subjects/" + $FileId + ".csv"
+    $DestFileName = $QuerySubjectDir + $FileId + ".csv"
 
     $QSData | Select NamespaceName, NamespaceDescription, NamespaceLastChanged, NamespaceLastChangedBy, QSName, QSLastChanged, QSLastChangedBy, QSSQL, QSModelQuery, QSSourceTable, QSTableType, QSDataSource, SourceFileId `
     | Export-Csv -Path $DestFileName -NoTypeInformation
