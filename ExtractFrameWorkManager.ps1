@@ -1,12 +1,20 @@
 function Main(){
-	$ModelsPath = "T:\Temp\models_all\"
+
+	$sw = [Diagnostics.Stopwatch]::StartNew()
+	
 	$date = Get-Date -Format "yyyy-MM-dd"
+	$csvDelimiter = "|"
+	
+	$ModelsPath = "T:\Temp\models_all\"
 	$HomeDir = "T:\Temp\model_data_$date\"
-	$LogFile = $HomeDir + "log_$date.log"
+	$ResultDir = $HomeDir + "results\"
 	$PackDir = $HomeDir + "packages\"
 	$DataSourceDir = $HomeDir + "data-sources\"
 	$QuerySubjectDir = $HomeDir + "query-subjects\"
-	$dirs = $HomeDir, $PackDir, $DataSourceDir, $QuerySubjectDir
+	
+	$LogFile = $HomeDir + "log_$date.log"
+	
+	$dirs = $HomeDir, $PackDir, $DataSourceDir, $QuerySubjectDir, $ResultDir
 	ForEach($d in $dirs){
 		if (Test-Path $d) {
 			Remove-Item $d -Recurse -Force
@@ -23,6 +31,7 @@ function Main(){
 	Write-Output "Models Location = $ModelsPath." >> $LogFile
 	Write-Output "HomeDir = $HomeDir.`nNumber of Files (model.xml) to Process = $NbFiles." >> $LogFile
 	
+	$Models = @()
     ForEach ($Id in $Ids){
         
         $FileId = $Id.Name
@@ -38,18 +47,14 @@ function Main(){
         $DataSources = $xmlElm.project.dataSources.dataSource
        
         if($DataSources){
-            ExtractDataSourcessData -ds $DataSources
-        }
-
-        if($DataSources -eq $null){
+            ExtractDataSourcessData -DataSources $DataSources
+        } else {
             Write-Output "*** DataSources is null for the file $FileId." >> $LogFile
         }
 
         if($Packages){
             ExtractPacksData -Packs $Packages
-        }
-
-        if($Packages -eq $null){
+        } else {
             Write-Output "*** Packages is null for the file $FileId." >> $LogFile
         }
 
@@ -60,23 +65,69 @@ function Main(){
         if($Namespaces -eq $null){
             Write-Output "*** Namespaces is null for the file $FileId." >> $LogFile
         }
+		
+		$cModel = (New-Object PSObject | Add-Member -PassThru NoteProperty "ModelName" $ProjectName `
+            | Add-Member -PassThru NoteProperty "SourceFileId" $FileId )
+		$Models += $cModel
     }
 	
-	Write-Output "Done. See data at $HomeDir" >> $LogFile
+	$finaleModelsFile = $ResultDir + "models.csv"
+	$finalDataSourceFile = $ResultDir + "data-sources.csv"
+	$finalPackagesFile = $ResultDir + "packages.csv"
+	$finalQSFile = $ResultDir + "query-subjects.csv"
+	
+	$Models | Export-Csv -Delimiter $csvDelimiter -NoTypeInformation -Path $finaleModelsFile
+	
+	MergeFiles -inputPath $DataSourceDir -outputFile $finalDataSourceFile
+	MergeFiles -inputPath $PackDir -outputFile $finalPackagesFile
+	MergeFiles -inputPath $QuerySubjectDir -outputFile $finalQSFile
+	
+	Write-Output "Done. See consolidated data at $ResultDir" >> $LogFile
+	Write-Output "For more details see data at $HomeDir" >> $LogFile
+	Write-Output "Done. See consolidated data at $ResultDir"
 	Write-Output "Done. See data at $HomeDir"
+	
+	$sw.Stop()
+    $elapsedTime = $sw.Elapsed.ToString()
+
+    Write-Output "Elapsed time: $elapsedTime" >> $LogFile
 }
 
-function ExtractDataSourcessData($ds) {
+function ExtractDataSourcessData($DataSources) {
+	$dsData = @()
     $DsDest = $DataSourceDir + $FileId + ".csv"
-    $ds | Export-Csv -Delimiter "|" -NoTypeInformation -Path $DsDest
+	
+	ForEach($curDs in $DataSources) {
+        $cdsData = (New-Object PSObject | Add-Member -PassThru NoteProperty "DataSourceName" $curDs.name `
+            | Add-Member -PassThru NoteProperty "queryProcessing" $curDs.queryProcessing `
+            | Add-Member -PassThru NoteProperty "cmDataSource" $curDs.cmDataSource `
+            | Add-Member -PassThru NoteProperty "Catalog" $curDs.catalog `
+            | Add-Member -PassThru NoteProperty "Schema" $curDs.schema `
+            | Add-Member -PassThru NoteProperty "QueryType" $curDs.type.queryType `
+			| Add-Member -PassThru NoteProperty "QueryInterface" $curDs.type.interface  `
+            | Add-Member -PassThru NoteProperty "ProjectName" $ProjectName  `
+            | Add-Member -PassThru NoteProperty "SourceFileId" $FileId
+        )
+        $dsData += $cdsData
+    }
+
+    $dsData | Export-Csv -Delimiter $csvDelimiter -NoTypeInformation -Path $DsDest
 }
 
 # Extract Packages
 function ExtractPacksData($Packs) {
     $PacksData = @()
     ForEach($pack in $Packs) {
-        $PackData = (New-Object PSObject | Add-Member -PassThru NoteProperty "PackageName" $pack.name."#text" `
-            | Add-Member -PassThru NoteProperty "PackageDescription" $pack.description."#text" `
+	
+		$PackName = $pack.name."#text" -replace '[\r\n\s]+', ' '
+		if($pack.name.GetType().BaseType.Name -eq "Array"){
+			$PackName = $pack.name[0]."#text" -replace '[\r\n\s]+', ' '
+		}
+		
+		$packDesc = $pack.description."#text" -replace '[\r\n\s]+', ' '
+		
+        $PackData = (New-Object PSObject | Add-Member -PassThru NoteProperty "PackageName" $PackName `
+            | Add-Member -PassThru NoteProperty "PackageDescription" $packDesc `
             | Add-Member -PassThru NoteProperty "LastChanged" $pack.lastChanged `
             | Add-Member -PassThru NoteProperty "LastChangedBy" $pack.lastChangedBy `
             | Add-Member -PassThru NoteProperty "LastPublished" $pack.lastPublished `
@@ -84,18 +135,17 @@ function ExtractPacksData($Packs) {
             | Add-Member -PassThru NoteProperty "ProjectName" $ProjectName  `
             | Add-Member -PassThru NoteProperty "SourceFileId" $FileId
         )
-        $PacksData = $PackData
+        $PacksData += $PackData
     }
 
     $PackDest = $PackDir + $FileId + ".csv"
-    $PacksData | Export-Csv -Delimiter "|" -NoTypeInformation -Path $PackDest
+    $PacksData | Export-Csv -Delimiter $csvDelimiter -NoTypeInformation -Path $PackDest
 }
 
 # Extract Single QuerySubject Info
 # $node: parent namespace
 # $QSNode: the querySubject to extract
 function Process-QSNode($node, $QSNode) {
-    $sep = "|@"
     $sql = $QSNode.definition.dbQuery.sql
     $rawSql = $null
     $sourceTable = $sql.table -replace '[\r\n\s]+', ' '
@@ -112,6 +162,10 @@ function Process-QSNode($node, $QSNode) {
         $rawSql = $sql."#text"
     }
     $rawSql = $rawSql -replace '[\r\n\s]+', ' '
+	
+	if ($rawSql -match "(?i)FROM\s+((?:\w+)(?:\s*(?:,|JOIN)\s*\w+)*)") {
+		$calculatedSrcTable = $matches[1] -split '\s*(?:,|JOIN)\s*'
+	}
     $modelQuery = $QSNode.definition.modelQuery.sql."#text"  -replace '[\r\n\s]+', ' '
 
     $result = (New-Object PSObject | Add-Member -PassThru NoteProperty "NamespaceName" $node.name."#text" `
@@ -123,6 +177,7 @@ function Process-QSNode($node, $QSNode) {
         | Add-Member -PassThru NoteProperty "QSSQL" $rawSql `
         | Add-Member -PassThru NoteProperty "QSModelQuery" $modelQuery `
         | Add-Member -PassThru NoteProperty "QSSourceTable" $sourceTable `
+		| Add-Member -PassThru NoteProperty "QSCalculatedSrcTable" $calculatedSrcTable `
         | Add-Member -PassThru NoteProperty "QSTableType" $QSNode.definition.dbQuery.tableType `
         | Add-Member -PassThru NoteProperty "QSLastChanged" $QSNode.lastChanged `
         | Add-Member -PassThru NoteProperty "QSLastChangedBy" $QSNode.lastChangedBy `
@@ -171,6 +226,27 @@ function ExtractQSData($RootNamespace) {
     $QSData = Process-NamespaceNode -node $RootNamespace
     $DestFileName = $QuerySubjectDir + $FileId + ".csv"
 
-    $QSData | Select NamespaceName, NamespaceDescription, NamespaceLastChanged, NamespaceLastChangedBy, QSName, QSLastChanged, QSLastChangedBy, QSSQL, QSModelQuery, QSSourceTable, QSTableType, QSDataSource, ProjectName, SourceFileId `
-    | Export-Csv -Path $DestFileName -NoTypeInformation
+    $QSData | Select NamespaceName, NamespaceDescription, NamespaceLastChanged, NamespaceLastChangedBy, QSName, QSLastChanged, QSLastChangedBy, QSSQL, QSModelQuery, QSSourceTable, QSCalculatedSrcTable, QSTableType, QSDataSource, ProjectName, SourceFileId `
+    | Export-Csv -Path $DestFileName -Delimiter $csvDelimiter -NoTypeInformation
+}
+
+
+function MergeFiles( $inputPath, $outputFile){
+	Write-Output "Merging CSV files under $inputPath to $outputFile." >> $LogFile
+	# Get a list of all CSV files in the input path
+	$csvFiles = Get-ChildItem -Path $inputPath
+
+	# Check if there are any files to process
+	if ($csvFiles) {
+		# Process the first file and include headers
+		$csvFiles[0].FullName | Import-Csv -Delimiter $csvDelimiter| Export-Csv -Path $outputFile -Delimiter $csvDelimiter -NoTypeInformation
+		
+		# Process the remaining files and exclude the first line (header)
+		for ($i = 1; $i -lt $csvFiles.Count; $i++) {
+			$content = Get-Content $csvFiles[$i].FullName | Select-Object -Skip 1
+			Add-Content $outputFile $content
+		}
+	} else {
+		Write-Host "No CSV files found in $inputPath."
+	}
 }
