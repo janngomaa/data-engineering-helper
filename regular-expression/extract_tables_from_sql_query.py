@@ -1,6 +1,5 @@
 import re
 
-
 def get_tables_from_sql(sql_query: str,) -> str:
     """
     Extract tables from a QSL query given in parameter
@@ -9,7 +8,7 @@ def get_tables_from_sql(sql_query: str,) -> str:
         sql_query(str): The SQL query string
 
     Returns:
-        Set: list of extracted tables
+        List: list of extracted tables
     
     """
     # Remove comments
@@ -19,38 +18,46 @@ def get_tables_from_sql(sql_query: str,) -> str:
     # Normalize whitespace and convert the query to lowercase
     normalized_sql = re.sub(r"\s+", " ", normalized_sql).strip().lower()
 
-    print(f"Normalized query is: {normalized_sql};")
+    # Get table names
 
-    tables = set()
+    table_names = set()
 
-    match_pattern = r"from(\s+.*?)(?=\s+group\s+|\s+limit\s+|\s+having\s+|\s+where\s+|\s+union\s+|;|\)|$)"
-    tables_location = re.findall(match_pattern, normalized_sql)
+    location_pattern = r"from(\s+.*?)(?=\s+group\s+|\s+limit\s+|\s+having\s+|\s+where\s+|\s+union\s+|;|\)|$)"
+    table_locations = re.findall(location_pattern, normalized_sql)
 
-    table_pattern = r"(^[\[\w.\]]+)|, *([\[\w.\]]+)|\s+join\s+([\[\w.\]]+)"
+    single_table_pattern = r"(^[\[\w.\]]+)|, *([\[\w.\]]+)|\s+join\s+([\[\w.\]]+)"
 
-    for tl in tables_location:
-        tables_names = re.findall(table_pattern, tl.strip())
-        new_tables = {word.upper() for match in tables_names for word in match if word}
-        tables.update(new_tables)
+    for tl in table_locations:
+        tnames_matches = re.findall(single_table_pattern, tl.strip())
+        new_tables = {table.upper() for match in tnames_matches for table in match if table}
+        table_names.update(new_tables)
 
-        # print(f"Location: {tl} - New tables {new_tables}:")
+    # Exclue CTE names
+    cte_names = set()
+    cte_pattern = r"\bwith\s+([\w_]+)\s+as\s+\(|,\s*([\w_]+)\s+as\s+\("
+    cte_matches = re.findall(cte_pattern, normalized_sql)
+    ctes = {cte.upper() for match in cte_matches for cte in match if cte}
+    cte_names.update(ctes)
+
+    table_names = sorted(table_names - cte_names)
+
+    return table_names
 
 
-    return tables
-
-
+# Example of usage
+# Example SQL query
 sql_query = """
-SELECT * FROM dbo.X WHERE N=1 UNION ALL select * from     a,b 
-where a.id=b.key;
---This is the first comment
-select col1, col2 from tA inner join TB on tA.id =tB.id /* Remove this comment toooo */;
-select a.id, b.name, c.sex, d.age from a,b,    c, d, k, m where a.id=b.id
--- Another complex query
-select a.id, b.name, c.sex, d.age from [dbo].[a] aT inner join b right join c full join d cross join k
-
--- End of query
+WITH CTE_Name AS (
+    SELECT col1 AS id, col2 AS fname FROM table1
+),
+Another_CTE AS (
+    SELECT col2 FROM table2
+),Yet_Another_CTE AS (
+    SELECT col3 FROM table3
+)
+SELECT id, a_ad AS a_id cte FROM CTE_Name;
+select a, colb from tablez union select c, d from tableK;
 """
-
 
 tables = get_tables_from_sql(sql_query)
 print(tables)
