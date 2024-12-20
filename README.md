@@ -5,8 +5,22 @@ This repository contains a collection of useful code snippets and scripts for va
 ---
 
 ## Table of Contents
+- [ETL Pipelines](#etl-pipelines)
+  - [API to PostgreSQL](etl-pipelines/README.md)
+  - [CSV to Parquet Conversion](etl-pipelines/README.md)
+  - [Batch Processing with Apache Spark](etl-pipelines/README.md)
+
 - [Cognos Lineage](#cognos-lineage)
 - [Useful Regex](#regular-expression)
+
+---
+## ETL Pipelines
+Scripts to extract, transform, and load (ETL) data effectively.
+
+- [API to PostgreSQL](etl-pipelines/README.md): Extract data from a public API, transform it, and load it into a PostgreSQL database.
+- [CSV to Parquet Conversion](etl-pipelines/README.md): Extract data from a CSV file, clean and filter it, and save it as a Parquet file.
+- [Batch Processing with Apache Spark](etl-pipelines/README.md): Process large datasets using Apache Spark to compute aggregated metrics.
+
 
 ---
 ## Cognos Lineage
