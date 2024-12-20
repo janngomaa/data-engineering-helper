@@ -22,7 +22,7 @@ def get_tables_from_sql(sql_query: str,) -> str:
 
     table_names = set()
 
-    location_pattern = r"from(\s+.*?)(?=\s+group\s+|\s+limit\s+|\s+having\s+|\s+where\s+|\s+union\s+|;|\)|$)"
+    location_pattern = r"from\s+(?!\()(.*?)(?=\s+group\s+|\s+limit\s+|\s+having\s+|\s+where\s+|\s+union\s+|;|\)|$)"
     table_locations = re.findall(location_pattern, normalized_sql)
 
     single_table_pattern = r"(^[\[\w.\]]+)|, *([\[\w.\]]+)|\s+join\s+([\[\w.\]]+)"
